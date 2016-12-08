@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="zh-cmn-Hans">
+<head>
+<meta charset="UTF-8">
+<title>基友聊天 | 好一网 - 51HSW.COM</title>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="stylesheet" href="jquery.cxcolor-1.2/css/jquery.cxcolor.css">
+</head>
+<body>
+	<div id="content" style=""></div>
+	<div style="position:;">
+		<input type="text" readonly id="name"> : <input type="text"
+			id="send_msg" placeholder="请输入要发送的内容" />
+		<button onclick="send_msg()">发送</button>
+	</div>
+	<div id="users_list">
+		<h3>在线用户（点击私聊）</h3>
+		<ol id="users_list_ul">
+		</ol>
+	</div>
+
+	<div id="nav_img_ios"
+		style="float: left; display:; margin-left: -1px; height: 100%; width: 100%; position: fixed; _position: absolute; top: 0; z-index: 100; background: #000; filter: alpha(opacity = 60); opacity: 0.9;">
+	</div>
+	<div id="chat_one"
+		style="z-index: 101; width: 60%; height: 60; position: fixed;bottom:10px; left: 10%;display:none;">
+		<div id="title_one" style="background-color: #fff;margin-top:10px;">与（）聊天</div>
+		<br/>
+		<div id="content_one" style=""></div>
+		<br>
+		<textarea id="txt_one" placeholder="请输入内容"></textarea><br>
+		<button onclick="send_one_msg()" id="send_one_btn" style="background-color: #fff">发送</button>
+		<button onclick="closeOneDiv()" style="background-color: #fff">关闭</button>
+	</div>
+</body>
+<script src="http://www.51hsw.com/public/js/vendor/jquery.min.js"></script>
+<script>
+	var _height = $(document).height();
+	var ws = '';
+	function _init() {
+
+		$('#content')
+				.attr(
+						"style",
+						"position:; height:"
+								+ (_height - 100)
+								+ "px;width:100%; overflow:auto;background-color:#c9d8c3");
+
+		$('#content_one').attr(
+				"style",
+				"position:; height:" + (_height - 150)
+						+ "px;background-color:#fff;overflow:auto;");
+
+		ws = new WebSocket("ws://192.168.104.71:9501");
+
+		ws.onopen = function() {
+			ws.send('{"code":"init","msg":"' + $('#name').val() + '"}');
+		};
+		ws.onmessage = function(e) {
+			//code msg tid
+			sendCallBack(e.data);
+
+			bottom();
+		};
+		ws.onerror = function() {
+			console.log("error");
+		};
+	}
+	var tid = 0;
+	var tname = '';
+	function userListClick(){
+		$('#users_list_ul li').click(function(e){
+			tid = $(this).attr("_k");
+			tname = $(this).html();
+			$('#title_one').html("与（"+tname+"）聊天");
+			$('#nav_img_ios').show();
+			$('#chat_one').show();
+			$('#txt_one').show();
+			$('#send_one_btn').show();
+		});
+	}
+	
+	var closeOneDiv = function(){
+		tid = 0;
+		tname = '';
+		$('#nav_img_ios').hide();
+		$('#chat_one').hide();
+		$('#content_one').html('');
+	}
+
+	var sendCallBack = function(data) {
+		var _d = eval("(" + data + ")");
+		switch (_d.type) {
+		case 'list_msg':
+			$('#content').append("<p style='color:'>" + _d.rs + "</p>");
+			break;
+		case 'list_one_msg':
+			oneToOne(_d.tid,_d.rs);
+			break;
+		case 'list_msg_error':
+			console.log("error: " + _d.rs);
+			break;
+		case 'list_one_close':
+			oneToOneClose(_d.rs);
+			break;
+		case 'users_list':
+			userListHtml(_d.rs);
+			break;
+		}
+	}
+	
+	var oneToOne = function(id,rs){
+		if(tid==id){
+			$('#content_one').append("<p style='color:'>" + rs + "</p>");
+		}else{
+			$('li[_k="'+id+'"]').html($('li[_k="'+id+'"]').html()+" (新消息)");
+		}
+	}
+	
+	var oneToOneClose = function(rs){
+		$('#txt_one').hide();
+		$('#send_one_btn').hide();
+		$('#content_one').append("<p style='color:'>" + rs + "</p>");
+	}
+
+	var userListHtml = function(rs) {
+		var _li = "";
+		for (o in rs) {
+			if($.trim(rs[o][1])==$('#name').val()){
+				continue;
+			}
+			_li += '<li style="background-color: #ced7da;margin-top: 10px; _n="'+$.trim(rs[o][1])+'" _k="'+rs[o][0]+'">'
+					+ rs[o][1] + '</li>';
+		}
+		$('#users_list_ul').html(_li);
+		userListClick();
+	}
+
+	var send_msg = function() {
+		if ($.trim($('#send_msg').val()) == '') {
+			alert("请输入要发送的内容");
+			return false;
+		}
+		var _pData = "《" + $('#name').val() + "》说：" + $('#send_msg').val();
+
+		ws.send('{"code":"all","msg":"' + _pData + '"}');
+		$('#send_msg').val('');
+	};
+	
+	var send_one_msg = function() {
+		if ($.trim($('#txt_one').val()) == '') {
+			alert("请输入要发送的内容");
+			return false;
+		}
+		var _pData = "《" + $('#name').val() + "》说：" + $('#txt_one').val();
+
+		ws.send('{"code":"one","msg":"' + _pData + '","tid":"'+tid+'"}');
+		$('#txt_one').val('');
+		$('#content_one').append(_pData);
+	};
+
+	var bottom = function() {
+		var oDiv = document.getElementById('content');
+		//看我就OK
+		oDiv.scrollTop = oDiv.scrollHeight;
+	};
+
+	var randomWord = function(randomFlag, min, max) {
+		var str = "", range = min, arr = [ '0', '1', '2', '3', '4', '5', '6',
+				'7', '8', '9', 'a', 'b', 'c', 'd', 'e', 'f', 'g', 'h', 'i',
+				'j', 'k', 'l', 'm', 'n', 'o', 'p', 'q', 'r', 's', 't', 'u',
+				'v', 'w', 'x', 'y', 'z', 'A', 'B', 'C', 'D', 'E', 'F', 'G',
+				'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q', 'R', 'S',
+				'T', 'U', 'V', 'W', 'X', 'Y', 'Z' ];
+
+		// 随机产生
+		if (randomFlag) {
+			range = Math.round(Math.random() * (max - min)) + min;
+		}
+		for (var i = 0; i < range; i++) {
+			pos = Math.round(Math.random() * (arr.length - 1));
+			str += arr[pos];
+		}
+		return str;
+	}
+
+	if (rs = prompt("请输入昵称", "")) {
+		$('#name').val(rs);
+		$('#nav_img_ios').hide();
+		_init();
+	} else {
+		$('#name').val(randomWord(true, 3, 10));
+		$('#nav_img_ios').hide();
+		_init();
+	}
+</script>
+</html>
