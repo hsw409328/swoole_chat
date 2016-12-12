@@ -12,7 +12,7 @@ swoole 聊天室，一对一聊天
 
 #注
 
-需要个性index.html 的websocket里的ip地址
+需要修改index.html 的websocket里的ip地址
 运行ifconfig 查询本地Ip,修改成本地IP地址
 
 
